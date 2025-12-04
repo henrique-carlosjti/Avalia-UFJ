@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking dos Concursos - Seu Olhar Pelo Sertão</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <img src="./assets/cropped-LOGO_ICON.png" alt="Logo UFJ" class="logo">
+            <div class="header-content">
+                <h1>Ranking dos Concursos</h1>
+            </div>
+            <nav>
+                <!-- O link de volta pode ser ajustado conforme a necessidade -->
+                <a href="login.html" class="btn-secondary">Login</a>
+            </nav>
+        </header>
+        <main class="admin-layout">
+            <section class="admin-section">
+                <h2>Visualizar Resultados</h2>
+                <div class="ranking-filters">
+                    <div class="input-group">
+                        <label for="ranking-contest-select">Selecione o Concurso:</label>
+                        <select id="ranking-contest-select">
+                            <option value="">Carregando concursos...</option>
+                        </select>
+                    </div>
+                    <div class="input-group" id="ranking-category-filter" style="display: none;">
+                        <label for="ranking-category-select">Filtrar por Categoria:</label>
+                        <select id="ranking-category-select">
+                            <option value="all">Todas as Categorias</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <section class="admin-section" id="ranking-results-section" style="display: none;">
+                <div class="ranking-header">
+                    <h2 id="ranking-title">Ranking</h2>
+                    <button id="export-csv-btn" class="btn">Exportar para CSV</button>
+                </div>
+                <ol id="ranking-list">
+                    <!-- A lista do ranking será inserida aqui -->
+                </ol>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modais e Spinner -->
+    <div id="custom-alert" class="custom-alert-overlay" style="display: none;">
+        <div class="custom-alert-box">
+            <p id="custom-alert-message"></p>
+            <button id="custom-alert-close">OK</button>
+        </div>
+    </div>
+
+    <div id="custom-confirm" class="custom-alert-overlay" style="display: none;">
+        <div class="custom-alert-box">
+            <p id="custom-confirm-message"></p>
+            <div class="confirm-buttons">
+                <button id="custom-confirm-cancel" class="btn-secondary">Cancelar</button>
+                <button id="custom-confirm-ok" class="btn">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="spinner-overlay" style="display: none;">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- SDKs do Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="assets/js/firebase-config.js"></script>
+    <script src="assets/js/database.js"></script>
+    <script src="assets/js/app.js"></script>
+</body>
+</html>

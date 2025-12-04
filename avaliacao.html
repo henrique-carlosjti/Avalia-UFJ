@@ -19,20 +19,21 @@
         </header>
 
         <main>
-            <div class="selection-area">
-                <label for="category-select">Selecione uma Categoria:</label>
-                <select id="category-select">
-                    <option value="fauna">Fauna</option>
-                    <option value="flora">Flora</option>
-                    <option value="agua">Água</option>
-                    <option value="destruicao">Destruição do Cerrado</option>
-                    <option value="pesquisas">Pesquisas Científicas</option>
-                    <option value="religiosidade">Religiosidade</option>
-                    <option value="povos">Povos Tradicionais</option>
+            <div id="contest-selection-area" class="selection-area">
+                <label for="contest-select">Selecione um Concurso para Avaliar:</label>
+                <select id="contest-select">
+                    <option value="">Carregando concursos...</option>
                 </select>
             </div>
-            <div style="height: 1cm;"></div>
-            <div class="photo-evaluation-area">
+
+            <div id="category-selection-area" class="selection-area" style="display: none;">
+                <label for="category-select">Selecione uma Categoria:</label>
+                <select id="category-select">
+                    <option value="">Selecione uma categoria...</option>
+                </select>
+            </div>
+
+            <div id="evaluation-content" class="photo-evaluation-area" style="display: none; margin-top: 2rem;">
                 <div class="photo-display">
                     <h2 id="current-category-title" class="category-title"></h2>
                     <img id="photo-to-evaluate" src="https://placehold.co/400x300/grey/white?text=Carregando..." alt="Foto para avaliação">

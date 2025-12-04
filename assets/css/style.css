@@ -61,16 +61,24 @@ header h1 {
     color: var(--primary-color);
 }
 
-header nav a, #logout-button {
+header nav {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+header nav a, header nav button {
     text-decoration: none;
-    color: var(--secondary-color);
     font-weight: bold;
     cursor: pointer;
-    background: none;
-    border: 1px solid var(--secondary-color);
+    border: none;
     padding: 0.5rem 1rem;
     border-radius: 5px;
     transition: all 0.3s ease;
+    color: white;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    display: inline-block;
 }
 
 header nav a:hover, #logout-button:hover {
@@ -119,10 +127,11 @@ select:focus {
     outline: none;
 }
 
-button {
+.btn, button {
     display: inline-block;
     width: 100%;
     padding: 0.8rem;
+    text-decoration: none;
     border: none;
     border-radius: 4px;
     font-size: 1rem;
@@ -134,7 +143,7 @@ button {
     color: white;
 }
 
-button:hover {
+.btn:hover, button:hover {
     background-color: var(--primary-hover-color);
 }
 
@@ -218,6 +227,14 @@ button:hover {
     background-color: #5a6268;
 }
 
+.btn-danger {
+    background-color: var(--danger-color);
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
 
 .tooltip {
     position: relative;
@@ -226,6 +243,7 @@ button:hover {
     cursor: pointer;
     color: var(--primary-color);
     font-weight: bold;
+    line-height: 1;
     font-size: 1rem; 
 }
 
@@ -884,3 +902,158 @@ button:hover {
     100% { transform: rotate(360deg); }
 }
 
+.contest-card {
+    background-color: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    width: 100%;
+}
+
+.contest-card h3 {
+    margin-top: 0;
+    color: var(--primary-color);
+}
+
+.contest-card p {
+    color: var(--secondary-color);
+}
+
+.contest-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1.5rem;
+    gap: 1rem;
+}
+
+.status-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.contest-card-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.contest-card-actions .btn {
+    width: auto;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
+
+.status-control select { width: auto; }
+
+.ranking-filters {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.ranking-filters .input-group {
+    flex: 1;
+    min-width: 250px;
+}
+
+.ranking-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.ranking-header button { width: auto; }
+
+.public-links {
+    text-align: center;
+    margin-top: 1.5rem;
+}
+
+.public-links a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.simple-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    padding: 0.5rem 0;
+}
+
+.simple-list .item-name {
+    flex-grow: 1;
+}
+
+.item-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.remove-item-btn, .edit-item-btn {
+    background: none;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 0.5rem;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.remove-item-btn {
+    color: var(--danger-color);
+    font-size: 1.5rem;
+}
+
+.edit-item-btn {
+    color: var(--secondary-color);
+    font-size: 1rem;
+    padding-bottom: 4px; /* Ajuste para alinhar o lápis com o 'x' */
+}
+
+.edit-item-btn:hover {
+    color: var(--primary-color);
+}
+
+.inline-edit-input {
+    flex-grow: 1;
+}
+
+.remove-item-btn:hover {
+    color: #c82333;
+}
+
+.admin-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.photo-card-admin {
+    position: relative;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.photo-card-admin img {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    display: block;
+}
+
+.photo-card-admin p {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+    text-align: center;
+    background-color: #f8f9fa;
+    margin: 0;
+}

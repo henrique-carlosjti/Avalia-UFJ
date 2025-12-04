@@ -2,8 +2,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const page = window.location.pathname.split('/').pop();
     const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser'));
     
-    if (!loggedInUser && page !== 'login.html') {
-        window.location.href = 'login.html';
+    // Se não há usuário logado e a página não é de login nem de ranking, redireciona para o login.
+    if (!loggedInUser && !['login.html', 'ranking.html'].includes(page)) {
+        window.location.href = 'login.html'; // A página de ranking é pública
         return;
     }
 
@@ -13,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function () {
             window.location.href = targetPage;
             return;
         }
-        if (loggedInUser.role === 'admin' && page !== 'admin.html') {
+        if (loggedInUser.role === 'admin' && !['admin.html', 'contest-details.html', 'ranking.html'].includes(page)) {
             window.location.href = 'admin.html';
             return;
         }
@@ -85,8 +86,14 @@ document.addEventListener('DOMContentLoaded', function () {
         case 'admin.html':
             handleAdminPage();
             break;
+        case 'contest-details.html':
+            handleContestDetailsPage();
+            break;
         case 'avaliacao.html':
             handleEvaluationPage();
+            break;
+        case 'ranking.html':
+            handleRankingPage();
             break;
     }
 
@@ -156,51 +163,64 @@ document.addEventListener('DOMContentLoaded', function () {
                 hideSpinner();
             }
         });
-        const rankingCategorySelect = document.getElementById('ranking-category-select');        
-        const allCategories = ['fauna', 'flora', 'agua', 'destruicao', 'pesquisas', 'religiosidade', 'povos'];
-        allCategories.forEach(category => {
-            const option = document.createElement('option');
-            option.value = category;
-            
-            const categoryDisplayNames = {
-                'fauna': 'Fauna',
-                'flora': 'Flora',
-                'agua': 'Água',
-                'destruicao': 'Destruição do Cerrado',
-                'pesquisas': 'Pesquisas Científicas',
-                'religiosidade': 'Religiosidade',
-                'povos': 'Povos Tradicionais'
-            };
-            const formattedName = categoryDisplayNames[category] || category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            option.textContent = formattedName;
-            rankingCategorySelect.appendChild(option);
-        });
 
-        rankingCategorySelect.addEventListener('change', renderRanking);
-
-        const exportCsvBtn = document.getElementById('export-csv-btn');
-        exportCsvBtn.addEventListener('click', exportRankingToCSV);
-
-        const syncPhotosBtn = document.getElementById('sync-photos-btn');
-        const photoListContainer = document.getElementById('photo-list-container');
-
-        syncPhotosBtn.addEventListener('click', async (e) => {
+        // --- Nova Lógica de Gerenciamento de Concursos ---
+        const createContestForm = document.getElementById('create-contest-form');
+        createContestForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const name = e.target['contest-name'].value;
+            const description = e.target['contest-description'].value;
+
             showSpinner();
             try {
-                showCustomAlert('Sincronizando com o Google Drive... Isso pode levar um momento.');
-                await syncPhotosWithDrive();
-                await fetchPhotos(); 
-                renderPhotos();
-                renderRanking(); 
-                showCustomAlert('Sincronização concluída!');
+                await createContest(name, description, loggedInUser.username);
+                showCustomAlert('Concurso criado com sucesso!');
+                createContestForm.reset();
+                await renderContests(); // Atualiza a lista de concursos
+            } catch (error) {
+                console.error('Erro ao criar concurso:', error);
+                showCustomAlert('Ocorreu um erro ao criar o concurso.');
             } finally {
                 hideSpinner();
             }
         });
-        
 
-        
+        // Lógica para o modal de edição de concurso
+        const editContestModal = document.getElementById('edit-contest-modal');
+        const editContestForm = document.getElementById('edit-contest-form');
+        const editContestCancelBtn = document.getElementById('edit-contest-cancel');
+
+        function openEditContestModal(contest) {
+            document.getElementById('edit-contest-id').value = contest.id;
+            document.getElementById('edit-contest-name').value = contest.name;
+            document.getElementById('edit-contest-description').value = contest.description || '';
+            editContestModal.style.display = 'flex';
+            setTimeout(() => editContestModal.classList.add('visible'), 10);
+        }
+
+        function closeEditContestModal() {
+            editContestModal.classList.remove('visible');
+            setTimeout(() => editContestModal.style.display = 'none', 300);
+        }
+
+        editContestCancelBtn.addEventListener('click', closeEditContestModal);
+
+        editContestForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const contestId = document.getElementById('edit-contest-id').value;
+            const name = document.getElementById('edit-contest-name').value;
+            const description = document.getElementById('edit-contest-description').value;
+            showSpinner();
+            await updateContestDetails(contestId, name, description);
+            hideSpinner();
+            closeEditContestModal();
+            showCustomAlert('Concurso atualizado com sucesso!');
+            await renderContests();
+        });
+
+        // --- Fim da Nova Lógica ---
+
+
         const usersTableBody = document.querySelector('#users-table tbody');
 
         async function renderUsers() {
@@ -284,9 +304,8 @@ document.addEventListener('DOMContentLoaded', function () {
             
             if (tabId === 'user-management-tab') {
                 await renderUsers(); 
-            } else if (tabId === 'photos-ranking-tab') {
-                await renderPhotos();
-                await renderRanking();
+            } else if (tabId === 'contest-management-tab') {
+                await renderContests();
             }
         }
 
@@ -299,561 +318,748 @@ document.addEventListener('DOMContentLoaded', function () {
         async function initialLoad() {
             showSpinner();
             try {
-                await fetchPhotos(); 
-                await fetchUsers(); 
+                // Não precisamos mais buscar fotos ou usuários globais no carregamento inicial da página de admin
+                // A busca será feita quando a respectiva aba for aberta.
                 await showTab('user-management-tab'); 
             } finally {
                 hideSpinner();
             }
         }
         await initialLoad();
-        
-        function renderPhotos() {
-            photoListContainer.innerHTML = '';
-            let allPhotos = [];
 
-            for (const category in photos) {
-                
-                allPhotos.push(...photos[category]);
+        async function renderContests() {
+            const contestsListDiv = document.getElementById('contests-list');
+            contestsListDiv.innerHTML = '<p>Carregando concursos...</p>';
+            showSpinner();
+            try {
+                const contests = await fetchContests();
+                if (contests.length === 0) {
+                    contestsListDiv.innerHTML = '<p>Nenhum concurso criado ainda.</p>';
+                    return;
+                }
+
+                contestsListDiv.innerHTML = '';
+                contests.forEach(contest => {
+                    const contestCard = document.createElement('div');
+                    contestCard.className = 'contest-card';
+                    const statusLabels = {
+                        draft: 'Rascunho',
+                        open: 'Aberto',
+                        closed: 'Fechado'
+                    };
+
+                    contestCard.innerHTML = `
+                        <h3>${contest.name}</h3>
+                        <p>${contest.description || 'Sem descrição.'}</p>
+                        <div class="contest-card-footer">
+                            <div class="status-control">
+                                <label for="status-select-${contest.id}">Status:</label>
+                                <select id="status-select-${contest.id}" data-contest-id="${contest.id}" class="status-select">
+                                    <option value="draft" ${contest.status === 'draft' ? 'selected' : ''}>${statusLabels.draft}</option>
+                                    <option value="open" ${contest.status === 'open' ? 'selected' : ''}>${statusLabels.open}</option>
+                                    <option value="closed" ${contest.status === 'closed' ? 'selected' : ''}>${statusLabels.closed}</option>
+                                </select>
+                            </div>
+                            <div class="contest-card-actions">
+                                <button class="btn btn-secondary edit-contest-btn" data-contest-id="${contest.id}">Editar</button>
+                                <a href="contest-details.html?id=${contest.id}" class="btn">Gerenciar</a>
+                                <button class="btn btn-danger delete-contest-btn" data-contest-id="${contest.id}">Excluir</button>
+                            </div>
+                        </div>
+                    `;
+                    contestsListDiv.appendChild(contestCard);
+                });
+
+                // Adiciona os event listeners para os selects de status
+                document.querySelectorAll('.status-select').forEach(select => {
+                    select.addEventListener('change', async (e) => {
+                        const contestId = e.target.dataset.contestId;
+                        const newStatus = e.target.value;
+                        const newStatusLabel = e.target.options[e.target.selectedIndex].text;
+
+                        showCustomConfirm(`Deseja alterar o status do concurso para "${newStatusLabel}"?`, async () => {
+                            showSpinner();
+                            await updateContestStatus(contestId, newStatus);
+                            hideSpinner();
+                            showCustomAlert('Status atualizado com sucesso!');
+                        });
+                    });
+                });
+
+                document.querySelectorAll('.edit-contest-btn').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const contestId = e.target.dataset.contestId;
+                        const contest = contests.find(c => c.id === contestId);
+                        openEditContestModal(contest);
+                    });
+                });
+
+                document.querySelectorAll('.delete-contest-btn').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const contestId = e.target.dataset.contestId;
+                        const contest = contests.find(c => c.id === contestId);
+                        showCustomConfirm(`Tem certeza que deseja excluir o concurso "${contest.name}"? TODOS os dados (categorias, fotos, avaliações) serão perdidos permanentemente.`, async () => {
+                            showSpinner();
+                            const result = await deleteContest(contestId);
+                            hideSpinner();
+                            showCustomAlert(result.message);
+                            if (result.status === 'success') await renderContests();
+                        });
+                    });
+                });
+
+            } catch (error) {
+                console.error('Erro ao renderizar concursos:', error);
+                contestsListDiv.innerHTML = '<p class="error-message">Não foi possível carregar os concursos.</p>';
+            } finally {
+                hideSpinner();
             }
+        }
+    }
 
-            if (allPhotos.length === 0) {
-                photoListContainer.innerHTML = '<p style="text-align: center; width: 100%;">Nenhuma foto sincronizada ainda.</p>';
-                return;
-            }
+    async function handleContestDetailsPage() {
+        const logoutButton = document.getElementById('logout-button');
+        if (logoutButton) logoutButton.addEventListener('click', logout);
 
-            const track = document.createElement('div');
-            track.className = 'carousel-track';
+        const urlParams = new URLSearchParams(window.location.search);
+        const contestId = urlParams.get('id');
 
-            const allPhotosDoubled = [...allPhotos, ...allPhotos];
-
-            allPhotosDoubled.forEach(photo => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'carousel-item';
-                itemDiv.innerHTML = `<img src="${photo.url}" alt="Foto de ${photo.participant || 'concurso'}">`;
-                itemDiv.addEventListener('click', () => showAdminImageModal(photo));
-                track.appendChild(itemDiv);
+        if (!contestId) {
+            showCustomAlert('ID do concurso não encontrado. Redirecionando...', () => {
+                window.location.href = 'admin.html';
             });
-
-            photoListContainer.appendChild(track);
+            return;
         }
 
-        async function renderRanking() {
-            showSpinner();
-            const rankingList = document.getElementById('ranking-list');
-            const selectedCategory = rankingCategorySelect.value;
-            const criteriaKeys = ['enquadramento', 'criatividade', 'contexto', 'composicao-foto', 'composicao-cores', 'identificacao', 'resolucao'];
-            rankingList.innerHTML = '';
-            try {
+        // Elementos da UI
+        const contestTitleHeader = document.getElementById('contest-title-header');
+        const addCategoryForm = document.getElementById('add-category-form');
+        const categoriesList = document.getElementById('categories-list');
+        const addPhotoForm = document.getElementById('add-photo-form');
+        const photoCategorySelect = document.getElementById('photo-category');
+        const contestPhotosGallery = document.getElementById('contest-photos-gallery');
+        const addVoterForm = document.getElementById('add-voter-form');
+        const voterUsernameSelect = document.getElementById('voter-username');
+        const votersList = document.getElementById('voters-list');
 
-            let allPhotos = [];
-            for (const category in photos) {
-                if (selectedCategory === 'all' || selectedCategory === category) {
-                    allPhotos.push(...photos[category]);
-                }
+        // Lógica de abas
+        const tabButtons = document.querySelectorAll('.tab-navigation .tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        function showTab(tabId) {
+            tabContents.forEach(content => content.classList.remove('active'));
+            tabButtons.forEach(button => button.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            document.querySelector(`.tab-button[data-tab="${tabId}"]`).classList.add('active');
+        }
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => showTab(button.dataset.tab));
+        });
+
+        // Funções de Renderização
+        async function renderCategories() {
+            const categories = await fetchCategories(contestId);
+            categoriesList.innerHTML = '';
+            photoCategorySelect.innerHTML = '<option value="">Selecione uma categoria...</option>';
+            if (categories.length > 0) {
+                categories.forEach(cat => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span class="item-name">${cat.name}</span>
+                        <div class="item-actions">
+                            <button class="edit-item-btn" data-id="${cat.id}" title="Editar categoria">&#9998;</button>
+                            <button class="remove-item-btn" data-id="${cat.id}" title="Remover categoria">&times;</button>
+                        </div>
+                    `;
+
+                    li.querySelector('.edit-item-btn').addEventListener('click', (e) => {
+                        const span = e.currentTarget.closest('li').querySelector('.item-name');
+                        const currentName = span.textContent;
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.value = currentName;
+                        input.className = 'inline-edit-input';
+                        input.addEventListener('blur', async () => { // Salva ao perder o foco
+                            const newName = input.value.trim();
+                            if (newName && newName !== currentName) {
+                                await updateCategoryName(contestId, cat.id, newName);
+                            }
+                            await renderCategories(); // Re-renderiza para restaurar o estado normal
+                        });
+                        input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') input.blur(); });
+
+                        span.replaceWith(input);
+                        input.focus();
+                    });
+
+                    li.querySelector('.remove-item-btn').addEventListener('click', () => {
+                        showCustomConfirm(`Tem certeza que deseja remover a categoria "${cat.name}"? As fotos nesta categoria NÃO serão removidas.`, async () => {
+                            showSpinner();
+                            await deleteCategory(contestId, cat.id);
+                            hideSpinner();
+                            await renderCategories();
+                        });
+                    });
+                    categoriesList.appendChild(li);
+
+                    const option = document.createElement('option');
+                    option.value = cat.id;
+                    option.textContent = cat.name;
+                    photoCategorySelect.appendChild(option);
+                });
+            } else {
+                categoriesList.innerHTML = '<li>Nenhuma categoria criada ainda.</li>';
+            }
+        }
+
+        async function renderPhotos() {
+            const photos = await fetchPhotosForContest(contestId);
+            contestPhotosGallery.innerHTML = '';
+            if (photos.length > 0) {
+                photos.forEach(photo => {
+                    const photoCard = document.createElement('div');
+                    photoCard.className = 'photo-card-admin';
+                    photoCard.innerHTML = `
+                        <button class="remove-item-btn" data-id="${photo.id}" data-drive-id="${photo.driveFileId}" title="Remover foto">&times;</button>
+                        <img src="${photo.url}" alt="Foto de ${photo.authorName}">
+                        <p>${photo.authorName || 'Anônimo'}</p>
+                    `;
+                    photoCard.querySelector('.remove-item-btn').addEventListener('click', () => {
+                        showCustomConfirm(`Tem certeza que deseja remover esta foto? A ação não pode ser desfeita.`, async () => {
+                            showSpinner();
+                            await deletePhoto(contestId, photo.id, photo.driveFileId);
+                            hideSpinner();
+                            await renderPhotos();
+                        });
+                    });
+                    contestPhotosGallery.appendChild(photoCard);
+                });
+            } else {
+                contestPhotosGallery.innerHTML = '<p>Nenhuma foto adicionada a este concurso ainda.</p>';
+            }
+        }
+
+        async function renderVoters() {
+            const [allUsers, contestVoters] = await Promise.all([fetchUsers(), getContestVoters(contestId)]);
+            
+            votersList.innerHTML = '';
+            if (contestVoters.length > 0) {
+                contestVoters.forEach(username => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span class="item-name">${username}</span>
+                        <div class="item-actions">
+                            <button class="remove-item-btn" data-username="${username}" title="Remover avaliador">&times;</button>
+                        </div>
+                    `;
+                    li.querySelector('.remove-item-btn').addEventListener('click', () => {
+                        showCustomConfirm(`Tem certeza que deseja remover o avaliador "${username}" deste concurso?`, async () => {
+                            showSpinner();
+                            await removeVoterFromContest(contestId, username);
+                            hideSpinner();
+                            await renderVoters();
+                        });
+                    });
+                    votersList.appendChild(li);
+                });
+            } else {
+                votersList.innerHTML = '<li>Nenhum avaliador adicionado a este concurso.</li>';
             }
 
-            const rankedPhotos = allPhotos.map(photo => {
-                const numEvaluations = photo.ratings.length;
-                const criteriaScores = Object.fromEntries(criteriaKeys.map(key => [key, 0]));
-                let totalAverageSum = 0; 
-                
-                photo.ratings.forEach(ev => {
-                    let evaluationScoreSum = 0;
-                    let criteriaCount = 0;
-                    
-                    for (const crit in ev.scores) { 
-                        
-                        if (Object.prototype.hasOwnProperty.call(criteriaScores, crit)) {
-                            const score = parseInt(ev.scores[crit], 10);
-                            evaluationScoreSum += score;
-                            criteriaScores[crit] += score;
-                            criteriaCount++;
-                        }
-                    }
-                    totalAverageSum += (criteriaCount > 0 ? (evaluationScoreSum / criteriaCount) : 0);
-                    
+            voterUsernameSelect.innerHTML = '<option value="">Selecione um usuário...</option>';
+            allUsers
+                .filter(user => user.role === 'evaluator' && !contestVoters.includes(user.username))
+                .forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.username;
+                    option.textContent = user.username;
+                    voterUsernameSelect.appendChild(option);
                 });
-                const overallAverage = numEvaluations > 0 ? (totalAverageSum / numEvaluations) : 0;
-                
-                return { ...photo, average: overallAverage, numEvaluations: numEvaluations, criteriaScores: criteriaScores };
-            });
+        }
 
-            rankedPhotos.sort((a, b) => {
-                if (b.average !== a.average) {
-                    return b.average - a.average;
-                }
-                const tieBreakerCriteria = ['composicao-foto', 'criatividade', 'enquadramento', 'contexto', 'composicao-cores', 'identificacao', 'resolucao'];
-                for (const crit of tieBreakerCriteria) {
-                    
-                    const totalScoreA = a.criteriaScores[crit] || 0;
-                    const totalScoreB = b.criteriaScores[crit] || 0;
-                    const scoreA = a.numEvaluations > 0 ? (totalScoreA / a.numEvaluations) : 0;
-                    const scoreB = b.numEvaluations > 0 ? (totalScoreB / b.numEvaluations) : 0;
-                    if (scoreB !== scoreA) return scoreB - scoreA;
-                }
+        // Event Listeners dos Formulários
+        addCategoryForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const categoryName = e.target['category-name'].value;
+            showSpinner();
+            try {
+                await createCategory(contestId, categoryName);
+                showCustomAlert('Categoria criada com sucesso!');
+                addCategoryForm.reset();
+                await renderCategories();
+            } catch (error) {
+                showCustomAlert('Erro ao criar categoria.');
+            } finally {
+                hideSpinner();
+            }
+        });
 
-                return 0;
-            });
+        addPhotoForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const file = e.target['photo-file'].files[0];
+            const categoryId = e.target['photo-category'].value;
+            const authorName = e.target['photo-author'].value;
+            
+            // Obtém os nomes para a criação das pastas no Drive
+            const contestName = contestTitleHeader.textContent;
+            const categoryName = photoCategorySelect.options[photoCategorySelect.selectedIndex].text;
 
-            if (rankedPhotos.length === 0) {
-                rankingList.innerHTML = '<li>Nenhuma foto cadastrada para esta categoria.</li>';
+
+            if (!file || !categoryId || !contestName || !categoryName) {
+                showCustomAlert('Por favor, selecione um arquivo e uma categoria válidos.');
                 return;
             }
+            showSpinner();
+            try {
+                await uploadPhoto(contestId, categoryId, file, authorName, contestName, categoryName);
+                showCustomAlert('Foto adicionada com sucesso!');
+                addPhotoForm.reset();
+                await renderPhotos();
+            } catch (error) {
+                showCustomAlert('Erro ao adicionar foto.');
+                console.error(error);
+            } finally {
+                hideSpinner();
+            }
+        });
 
-            rankedPhotos.forEach((photo, index) => {
-                const listItem = document.createElement('li');
-                listItem.className = 'photo-item';
+        addVoterForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = e.target['voter-username'].value;
+            if (!username) return;
+            showSpinner();
+            try {
+                await addVoterToContest(contestId, username);
+                showCustomAlert('Avaliador adicionado com sucesso!');
+                addVoterForm.reset();
+                await renderVoters();
+            } catch (error) {
+                showCustomAlert('Erro ao adicionar avaliador.');
+            } finally {
+                hideSpinner();
+            }
+        });
 
-                const detailsHtml = `
-                    <div class="evaluation-details-container">
-                        <div class="average-scores">
-                            <h4>Médias Gerais</h4>
-                        </div>
-                        <div class="individual-evaluations">
-                        </div>
-                    </div>
-                `;
-
-
-                listItem.innerHTML = `
-                    <div class="photo-item-header">
-                         <span class="rank-position">${index + 1}</span>
-                         <img src="${photo.url}" alt="Foto de ${photo.participant}">
-                         <div class="photo-item-info">
-                            <p><strong>Média Geral:</strong> ${photo.average.toFixed(2)}</p>
-                            <p><strong>Participante:</strong> ${photo.participant || 'Não informado'}</p>
-                            <p><strong>Avaliações:</strong> ${photo.numEvaluations}</p>
-                         </div>
-                         <div class="photo-item-category">${photo.category.replace(/_/g, ' ')}</div>
-                        <button class="details-btn" data-photoid="rank-${photo.id}">Ver Detalhes</button>
-                        <button class="remove-btn" data-id="${photo.id}" data-category="${photo.category}">Remover</button>
-
-                    </div>
-                    <div class="photo-details" id="details-rank-${photo.id}">
-                        ${detailsHtml}
-                    </div>
-                `;
-                rankingList.appendChild(listItem);
-            });
-
-            rankingList.querySelectorAll('.details-btn').forEach(button => {
-                button.addEventListener('click', function() {
-                    const detailsPanel = document.getElementById(`details-${this.dataset.photoid}`);
-                    detailsPanel.classList.toggle('open');
-
-                    if (detailsPanel.classList.contains('open') && !detailsPanel.dataset.detailsLoaded) {
-                        const photoId = this.dataset.photoid.replace('rank-', '');
-                        const photo = rankedPhotos.find(p => p.id === photoId);
-                        
-                        renderEvaluationDetails(detailsPanel, photo, criteriaKeys);
-                        detailsPanel.dataset.detailsLoaded = 'true';
-                    }
-                });
-            });
+        // Carregamento Inicial
+        async function initialLoad() {
+            showSpinner();
+            try {
+                const contests = await fetchContests();
+                const currentContest = contests.find(c => c.id === contestId);
+                if (currentContest) {
+                    contestTitleHeader.textContent = currentContest.name;
+                }
+                await Promise.all([renderCategories(), renderPhotos(), renderVoters()]);
+            } catch (error) {
+                console.error("Erro ao carregar dados do concurso:", error);
+                showCustomAlert("Não foi possível carregar os detalhes do concurso.");
             } finally {
                 hideSpinner();
             }
         }
 
-        async function exportRankingToCSV() {
-            showCustomAlert('Gerando CSV...');
-            
-            const selectedCategory = rankingCategorySelect.value;
-            const criteriaKeys = ['enquadramento', 'criatividade', 'contexto', 'composicao-foto', 'composicao-cores', 'identificacao', 'resolucao'];
-            
-            let allPhotos = [];
-            for (const category in photos) {
-                if (selectedCategory === 'all' || selectedCategory === category) {
-                    allPhotos.push(...photos[category]);
-                }
-            }
-
-            const rankedPhotos = allPhotos.map(photo => {
-                const numEvaluations = photo.ratings.length;
-                const criteriaScores = Object.fromEntries(criteriaKeys.map(key => [key, 0]));
-                let totalAverageSum = 0;
-
-                photo.ratings.forEach(ev => {
-                    let evaluationScoreSum = 0;
-                    let criteriaCount = 0;
-
-                    for (const crit in ev.scores) { 
-                        if (Object.prototype.hasOwnProperty.call(criteriaScores, crit)) {
-                            const score = parseInt(ev.scores[crit], 10);
-                            evaluationScoreSum += score;
-                            criteriaScores[crit] += score;
-                            criteriaCount++;
-                        }
-                    }
-                    totalAverageSum += (criteriaCount > 0 ? (evaluationScoreSum / criteriaCount) : 0);
-                });
-                const overallAverage = numEvaluations > 0 ? (totalAverageSum / numEvaluations) : 0;
-                return { ...photo, average: overallAverage, numEvaluations: numEvaluations, criteriaScores: criteriaScores };
-            }).sort((a, b) => b.average - a.average);
-
-            if (rankedPhotos.length === 0) {
-                showCustomAlert('Não há dados para exportar.');
-                return;
-            }
-
-            const headers = ['Posição', 'Participante', 'Categoria', 'Média Geral', 'Nº de Avaliações', ...criteriaKeys.map(formatCriterionName)];
-            let csvContent = "data:text/csv;charset=utf-8," + headers.join(',') + '\n';
-
-            rankedPhotos.forEach((photo, index) => {
-                const row = [
-                    index + 1,
-                    `"${photo.participant}"`,
-                    photo.category,
-                    photo.average.toFixed(2),
-                    photo.numEvaluations,
-                    ...criteriaKeys.map(crit => (photo.criteriaScores[crit] / (photo.numEvaluations || 1)).toFixed(2))
-                ];
-                csvContent += row.join(',') + '\n';
-            });
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `ranking_${selectedCategory}_${new Date().toISOString().slice(0,10)}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        function formatCriterionName(name) {
-            
-            
-            return name.replace(/-/g, ' ').replace(/(^\w|\s\w)/g, char => char.toUpperCase());
-        }
-
-        function renderEvaluationDetails(detailsPanel, photo, criteriaKeys) {
-            let carouselHtml = `
-                <div class="details-carousel-wrapper">
-                    <div class="details-carousel-track">
-            `;
-
-            
-            carouselHtml += '<div class="details-carousel-slide">';
-            carouselHtml += '<h4>Médias Gerais</h4>';
-            if (photo.numEvaluations > 0) {
-                carouselHtml += '<table class="details-table"><tbody>';
-                criteriaKeys.forEach(crit => {
-                    const totalScoreForCrit = photo.criteriaScores[crit] || 0;
-                    const averageScore = (totalScoreForCrit / photo.numEvaluations).toFixed(2);
-                    carouselHtml += `<tr><td>${formatCriterionName(crit)}</td><td>${averageScore}</td></tr>`;
-                });
-                carouselHtml += '</tbody></table>';
-            } else {
-                carouselHtml += '<p>Nenhuma avaliação ainda.</p>';
-            }
-            carouselHtml += '</div>';
-            
-            if (photo.numEvaluations > 0) {
-                
-                photo.ratings.forEach((evaluation, index) => {
-                    carouselHtml += '<div class="details-carousel-slide">';
-                    carouselHtml += `<h4>Avaliação de: ${evaluation.evaluator}</h4>`;
-                    carouselHtml += '<table class="details-table"><tbody>';
-                    for (const crit in evaluation.scores) { 
-                        carouselHtml += `<tr><td>${formatCriterionName(crit)}</td><td>${evaluation.scores[crit]}</td></tr>`;
-                    }
-                    carouselHtml += '</tbody></table>';
-                    carouselHtml += `<p><strong>Comentários:</strong> ${evaluation.comments || 'Nenhum'}</p>`;
-                    carouselHtml += '</div>';
-                });
-            }
-
-            carouselHtml += `
-                    </div>
-                </div>
-            `;
-
-            if (photo.numEvaluations > 0) {
-                carouselHtml += `
-                    <div class="details-carousel-navigation">
-                        <button class="evaluator-nav-btn prev-evaluator" disabled>&lt;</button>
-                        <button class="evaluator-nav-btn next-evaluator">&gt;</button>
-                    </div>
-                `;
-            }
-
-            detailsPanel.innerHTML = carouselHtml;
-
-            if (photo.numEvaluations > 0) {
-                const track = detailsPanel.querySelector('.details-carousel-track');
-                const prevBtn = detailsPanel.querySelector('.prev-evaluator');
-                const nextBtn = detailsPanel.querySelector('.next-evaluator');
-                const totalSlides = photo.numEvaluations + 1;
-                let currentIndex = 0;
-
-                function updateCarousel() {
-                    track.style.transform = `translateX(-${currentIndex * 100}%)`;
-                    prevBtn.disabled = currentIndex === 0;
-                    nextBtn.disabled = currentIndex === totalSlides - 1;
-                }
-
-                prevBtn.addEventListener('click', () => {
-                    if (currentIndex > 0) {
-                        currentIndex--;
-                        updateCarousel();
-                    }
-                });
-
-                nextBtn.addEventListener('click', () => {
-                    if (currentIndex < totalSlides - 1) {
-                        currentIndex++;
-                        updateCarousel();
-                    }
-                });
-            }
-        }
-
-        function showAdminImageModal(photo) {
-            const modal = document.getElementById('image-modal-admin');
-            const modalImg = document.getElementById('modal-image-content-admin');
-            const captionText = document.getElementById('modal-image-caption-admin');
-            const closeSpan = modal.querySelector('.image-modal-close');
-
-            modal.style.display = 'flex';
-            modalImg.src = photo.url;
-          
-            const categoryDisplayNames = {
-                'fauna': 'Fauna', 'flora': 'Flora', 'agua': 'Água',
-                'destruicao': 'Destruição do Cerrado', 'pesquisas': 'Pesquisas Científicas',
-                'religiosidade': 'Religiosidade', 'povos': 'Povos Tradicionais'
-            };
-            const formattedCategory = categoryDisplayNames[photo.category] || photo.category.replace(/_/g, ' ');
-
-            captionText.innerHTML = `<span>${photo.participant}</span><span> Categoria: ${formattedCategory}</span>`;
-
-            const closeModal = () => modal.style.display = "none";
-            
-            closeSpan.onclick = closeModal;
-            modal.onclick = (e) => {
-                if (e.target === modal) {
-                    closeModal();
-                }
-            };
-        }
+        await initialLoad();
     }
 
     async function handleEvaluationPage() {
         const logoutButton = document.getElementById('logout-button');
         if (logoutButton) logoutButton.addEventListener('click', logout);
-
+    
+        // Elementos da UI
+        const contestSelect = document.getElementById('contest-select');
         const categorySelect = document.getElementById('category-select');
+        const categorySelectionArea = document.getElementById('category-selection-area');
+        const evaluationContent = document.getElementById('evaluation-content');
         const photoImg = document.getElementById('photo-to-evaluate');
         const photoInfo = document.getElementById('photo-info');
         const prevBtn = document.getElementById('prev-photo');
         const nextBtn = document.getElementById('next-photo');
         const evaluationForm = document.getElementById('evaluation-form');
         const sliders = document.querySelectorAll('.criterion input[type="range"]');
-        const categoryTitle = document.getElementById('current-category-title');
+        const currentCategoryTitle = document.getElementById('current-category-title');
         const evaluatedMessageDiv = document.getElementById('already-evaluated-message');
-
-        let currentCategory = categorySelect.value;
+    
+        // Estado da aplicação
+        let allContestPhotos = [];
+        let photosByCategory = {};
+        let currentContestId = null;
+        let currentCategoryId = null;
         let currentPhotoIndex = 0;
-
-        const categoryDisplayNames = {
-            'fauna': 'Fauna',
-            'flora': 'Flora',
-            'agua': 'Água',
-            'destruicao': 'Destruição do Cerrado',
-            'pesquisas': 'Pesquisas Científicas',
-            'religiosidade': 'Religiosidade',
-            'povos': 'Povos Tradicionais'
-        };
-        function displayPhoto(category, index) {
-            const photosInCategory = photos[category];
-            if (photosInCategory && photosInCategory.length > 0) {
-                photoImg.src = photosInCategory[index].url;
-                photoInfo.textContent = `Foto ${index + 1} de ${photosInCategory.length}`;
-                prevBtn.disabled = index === 0;
-                categoryTitle.textContent = categoryDisplayNames[category] || category.replace(/_/g, ' ');
-                nextBtn.disabled = index === photosInCategory.length - 1;
-            } else {
-                photoImg.src = 'https://placehold.co/400x300/grey/white?text=Sem+fotos';
-                photoInfo.textContent = 'Nenhuma foto nesta categoria.';
-                prevBtn.disabled = true;
-                nextBtn.disabled = true;
-                setFormState(true, 'Nenhuma foto para avaliar');
+    
+        // Funções de renderização e estado
+        function displayCurrentPhoto() {
+            const photosInCurrentCategory = photosByCategory[currentCategoryId] || [];
+            if (photosInCurrentCategory.length === 0) {
+                evaluationContent.style.display = 'none';
+                showCustomAlert('Não há fotos nesta categoria para avaliar.');
                 return;
             }
-
-            const currentPhoto = photosInCategory ? photosInCategory[index] : null;
-            const existingEvaluation = currentPhoto ? currentPhoto.ratings.find(r => r.evaluator === loggedInUser.username) : null;
-
+    
+            evaluationContent.style.display = 'flex';
+            const photo = photosInCurrentCategory[currentPhotoIndex];
+            photoImg.src = photo.url;
+            photoInfo.textContent = `Foto ${currentPhotoIndex + 1} de ${photosInCurrentCategory.length}`;
+            prevBtn.disabled = currentPhotoIndex === 0;
+            nextBtn.disabled = currentPhotoIndex === photosInCurrentCategory.length - 1;
+    
+            const existingEvaluation = photo.ratings.find(r => r.evaluator === loggedInUser.username);
             if (existingEvaluation) {
-                for (const crit in existingEvaluation.scores) {
-                    const slider = document.getElementById(crit);
-                    const valueSpan = document.getElementById(`${crit}-value`);
-                    if (slider && valueSpan) {
-                        slider.value = existingEvaluation.scores[crit];
-                        valueSpan.textContent = slider.value;
-                    }
-                }
+                sliders.forEach(slider => {
+                    slider.value = existingEvaluation.scores[slider.id] || 5;
+                    document.getElementById(`${slider.id}-value`).textContent = slider.value;
+                });
                 document.getElementById('comments').value = existingEvaluation.comments || '';
-
-                setFormState(true, 'Você já avaliou esta foto!');
-                evaluationForm.classList.add('evaluated');
-                evaluatedMessageDiv.textContent = 'Você já avaliou esta foto!';
+                setFormState(true, 'Avaliação Enviada');
                 evaluatedMessageDiv.style.display = 'block';
+                evaluatedMessageDiv.textContent = 'Você já avaliou esta foto.';
             } else {
                 resetForm();
                 setFormState(false, 'Enviar Avaliação');
-                evaluationForm.classList.remove('evaluated');
                 evaluatedMessageDiv.style.display = 'none';
             }
         }
-
-        function preloadCategoryImages(category) {
-            const photosInCategory = photos[category];
-            if (photosInCategory) {
-                
-                photosInCategory.forEach(photo => {
-                    new Image().src = photo.url;
-                });
-            }
-        }
-
+    
         function setFormState(disabled, buttonText) {
             sliders.forEach(slider => slider.disabled = disabled);
             document.getElementById('comments').disabled = disabled;
-            evaluationForm.querySelector('button[type="submit"]').disabled = disabled;
-            evaluationForm.querySelector('button[type="submit"]').textContent = buttonText;
+            const submitBtn = evaluationForm.querySelector('button[type="submit"]');
+            submitBtn.disabled = disabled;
+            submitBtn.textContent = buttonText;
+            evaluationForm.classList.toggle('evaluated', disabled);
         }
-
+    
         function resetForm() {
             evaluationForm.reset();
             sliders.forEach(slider => {
-                const valueSpan = document.getElementById(`${slider.id}-value`);
-                if (valueSpan) {
-                    valueSpan.textContent = slider.value;
-                }
+                document.getElementById(`${slider.id}-value`).textContent = slider.value;
             });
         }
-
-        categorySelect.addEventListener('change', () => {
-            currentCategory = categorySelect.value;
-            photoImg.src = 'https://placehold.co/400x300/grey/white?text=Carregando...';
-            currentPhotoIndex = 0;
-            displayPhoto(currentCategory, currentPhotoIndex);
-            preloadCategoryImages(currentCategory);
-        });
-
-        nextBtn.addEventListener('click', () => {
-            if (currentPhotoIndex < photos[currentCategory].length - 1) {
-                currentPhotoIndex++;
-                photoImg.src = 'https://placehold.co/400x300/grey/white?text=Carregando...';
-                displayPhoto(currentCategory, currentPhotoIndex);
+    
+        // Event Listeners
+        contestSelect.addEventListener('change', async () => {
+            currentContestId = contestSelect.value;
+            evaluationContent.style.display = 'none';
+            categorySelectionArea.style.display = 'none';
+            categorySelect.innerHTML = '<option value="">Carregando...</option>';
+    
+            if (!currentContestId) return;
+    
+            showSpinner();
+            try {
+                const [categories, photos] = await Promise.all([
+                    fetchCategories(currentContestId),
+                    fetchPhotosForContest(currentContestId)
+                ]);
+    
+                allContestPhotos = photos;
+                photosByCategory = allContestPhotos.reduce((acc, photo) => {
+                    if (!acc[photo.categoryId]) acc[photo.categoryId] = [];
+                    acc[photo.categoryId].push(photo);
+                    return acc;
+                }, {});
+    
+                categorySelect.innerHTML = '<option value="">Selecione uma categoria...</option>';
+                categories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat.id;
+                    option.textContent = cat.name;
+                    categorySelect.appendChild(option);
+                });
+                categorySelectionArea.style.display = 'block';
+            } catch (error) {
+                showCustomAlert('Erro ao carregar dados do concurso.');
+            } finally {
+                hideSpinner();
             }
         });
-
+    
+        categorySelect.addEventListener('change', () => {
+            currentCategoryId = categorySelect.value;
+            currentPhotoIndex = 0;
+            if (!currentCategoryId) {
+                evaluationContent.style.display = 'none';
+                return;
+            }
+            const categoryName = categorySelect.options[categorySelect.selectedIndex].text;
+            currentCategoryTitle.textContent = categoryName;
+            displayCurrentPhoto();
+        });
+    
+        nextBtn.addEventListener('click', () => {
+            const photosInCurrentCategory = photosByCategory[currentCategoryId] || [];
+            if (currentPhotoIndex < photosInCurrentCategory.length - 1) {
+                currentPhotoIndex++;
+                displayCurrentPhoto();
+            }
+        });
+    
         prevBtn.addEventListener('click', () => {
             if (currentPhotoIndex > 0) {
                 currentPhotoIndex--;
-                photoImg.src = 'https://placehold.co/400x300/grey/white?text=Carregando...';
-                displayPhoto(currentCategory, currentPhotoIndex);
+                displayCurrentPhoto();
             }
         });
-
+    
         sliders.forEach(slider => {
             slider.addEventListener('input', () => {
-                const valueSpan = document.getElementById(`${slider.id}-value`);
-                if (valueSpan) {
-                    valueSpan.textContent = slider.value;
-                }
+                document.getElementById(`${slider.id}-value`).textContent = slider.value;
             });
         });
-
+    
         evaluationForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-
             showCustomConfirm('Tem certeza que deseja enviar esta avaliação?', async () => {
                 showSpinner();
-                const currentPhoto = photos[currentCategory][currentPhotoIndex];
-                
+                const currentPhoto = photosByCategory[currentCategoryId][currentPhotoIndex];
                 const evaluation = {
                     photoId: currentPhoto.id,
-                    participant: currentPhoto.participant,
-                    category: currentCategory,
                     evaluator: loggedInUser.username,
                     scores: {},
                     comments: document.getElementById('comments').value
                 };
-
-                sliders.forEach(slider => {
-                    evaluation.scores[slider.id] = slider.value;
-                });
-
+                sliders.forEach(slider => { evaluation.scores[slider.id] = slider.value; });
+    
                 try {
+                    await saveContestEvaluation(currentContestId, evaluation);
                     
-                    const result = await saveEvaluation(evaluation);
-
-                    if (result.status !== 'success') throw new Error(result.message || 'Falha ao enviar avaliação para o servidor.');
-
-                    const index = currentPhoto.ratings.findIndex(r => r.evaluator === loggedInUser.username);
-                    if (index > -1) {
-                        currentPhoto.ratings[index] = evaluation;
+                    // Atualiza o estado local
+                    const photoToUpdate = allContestPhotos.find(p => p.id === currentPhoto.id);
+                    const ratingIndex = photoToUpdate.ratings.findIndex(r => r.evaluator === loggedInUser.username);
+                    if (ratingIndex > -1) {
+                        photoToUpdate.ratings[ratingIndex] = evaluation;
                     } else {
-                        currentPhoto.ratings.push(evaluation);
+                        photoToUpdate.ratings.push(evaluation);
                     }
-
-                    displayPhoto(currentCategory, currentPhotoIndex);
-
-                    
-                    const isLastPhotoInCategory = currentPhotoIndex >= photos[currentCategory].length - 1;
-
-                    if (isLastPhotoInCategory) {
-                        const currentCategoryIndex = Array.from(categorySelect.options).findIndex(opt => opt.value === currentCategory);
-                        const isLastCategory = currentCategoryIndex >= categorySelect.options.length - 1;
-
-                        if (isLastCategory) {
-                            showCustomAlert('Parabéns! Você avaliou todas as fotos de todas as categorias.');
+    
+                    showCustomAlert('Avaliação enviada com sucesso!', () => {
+                        if (nextBtn.disabled) {
+                            showCustomAlert('Você avaliou todas as fotos desta categoria!');
                         } else {
-                            showCustomAlert('Você avaliou todas as fotos desta categoria! Avançando para a próxima...', () => {
-                                const nextCategoryIndex = currentCategoryIndex + 1;
-                                categorySelect.selectedIndex = nextCategoryIndex;
-                                categorySelect.dispatchEvent(new Event('change'));
-                            });
+                            nextBtn.click();
                         }
-                    } else {
-                        showCustomAlert('Sua avaliação foi registrada com sucesso!', () => {
-                            nextBtn.click(); 
-                        });
-                    }
-
+                    });
+                    displayCurrentPhoto();
                 } catch (error) {
-                    console.error('Erro ao enviar avaliação:', error);
-                    showCustomAlert('Ocorreu um erro ao enviar sua avaliação. Tente novamente.');
+                    showCustomAlert('Erro ao salvar avaliação.');
                 } finally {
                     hideSpinner();
                 }
             });
         });
-
-        await fetchPhotos();
-        displayPhoto(currentCategory, currentPhotoIndex);
-        preloadCategoryImages(currentCategory);
-
+    
+        // Carregamento inicial da página
+        async function initialLoad() {
+            showSpinner();
+            try {
+                const contests = await fetchContestsForVoter(loggedInUser.username);
+                contestSelect.innerHTML = '<option value="">Selecione um concurso...</option>';
+                if (contests.length === 0) {
+                    contestSelect.innerHTML = '<option value="">Nenhum concurso aberto para avaliação</option>';
+                    showCustomAlert('No momento, não há concursos abertos para sua avaliação.');
+                    return;
+                }
+                contests.forEach(contest => {
+                    const option = document.createElement('option');
+                    option.value = contest.id;
+                    option.textContent = contest.name;
+                    contestSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error("Erro ao carregar concursos para o avaliador:", error);
+                showCustomAlert('Não foi possível carregar os concursos.');
+            } finally {
+                hideSpinner();
+            }
+        }
+    
+        // Modal de imagem
         const imageModal = document.getElementById('image-modal');
         const modalImageContent = document.getElementById('modal-image-content');
         const closeModal = imageModal.querySelector('.image-modal-close');
-
+    
         photoImg.addEventListener('click', () => {
             imageModal.style.display = 'flex';
             modalImageContent.src = photoImg.src;
         });
-
+    
         const closeImageModal = () => {
             imageModal.style.display = 'none';
         };
-
+    
         closeModal.addEventListener('click', closeImageModal);
         imageModal.addEventListener('click', (e) => {
             if (e.target === imageModal) closeImageModal();
         });
+
+        await initialLoad();
+    }
+
+    async function handleRankingPage() {
+        const contestSelect = document.getElementById('ranking-contest-select');
+        const categorySelect = document.getElementById('ranking-category-select');
+        const categoryFilterDiv = document.getElementById('ranking-category-filter');
+        const rankingResultsSection = document.getElementById('ranking-results-section');
+        const rankingList = document.getElementById('ranking-list');
+        const exportCsvBtn = document.getElementById('export-csv-btn');
+
+        let allContestPhotos = [];
+        let contestCategories = [];
+
+        // Carregamento inicial: busca concursos fechados
+        async function initialLoad() {
+            showSpinner();
+            try {
+                const contests = await fetchContests();
+                const closedContests = contests.filter(c => c.status === 'closed');
+
+                contestSelect.innerHTML = '<option value="">Selecione um concurso...</option>';
+                if (closedContests.length === 0) {
+                    contestSelect.innerHTML = '<option value="">Nenhum concurso finalizado</option>';
+                    return;
+                }
+                closedContests.forEach(contest => {
+                    const option = document.createElement('option');
+                    option.value = contest.id;
+                    option.textContent = contest.name;
+                    contestSelect.appendChild(option);
+                });
+            } catch (error) {
+                showCustomAlert('Não foi possível carregar os concursos.');
+            } finally {
+                hideSpinner();
+            }
+        }
+
+        // Lógica de cálculo e renderização do ranking
+        function renderRanking() {
+            const selectedCategoryId = categorySelect.value;
+            
+            const photosToRank = selectedCategoryId === 'all'
+                ? allContestPhotos
+                : allContestPhotos.filter(p => p.categoryId === selectedCategoryId);
+
+            const rankedPhotos = photosToRank.map(photo => {
+                const numEvaluations = photo.ratings.length;
+                let totalScoreSum = 0;
+                
+                photo.ratings.forEach(ev => {
+                    let evaluationScoreSum = 0;
+                    let criteriaCount = 0;
+                    for (const crit in ev.scores) {
+                        evaluationScoreSum += parseInt(ev.scores[crit], 10);
+                        criteriaCount++;
+                    }
+                    // Média da avaliação individual
+                    totalScoreSum += (criteriaCount > 0 ? (evaluationScoreSum / criteriaCount) : 0);
+                });
+                
+                // Média geral da foto
+                const overallAverage = numEvaluations > 0 ? (totalScoreSum / numEvaluations) : 0;
+                
+                return { ...photo, average: overallAverage, numEvaluations };
+            }).sort((a, b) => b.average - a.average); // Ordena pela maior média
+
+            rankingList.innerHTML = '';
+            if (rankedPhotos.length === 0) {
+                rankingList.innerHTML = '<li>Nenhuma foto encontrada para esta seleção.</li>';
+                return;
+            }
+
+            rankedPhotos.forEach((photo, index) => {
+                const category = contestCategories.find(c => c.id === photo.categoryId);
+                const categoryName = category ? category.name : 'Sem Categoria';
+
+                const listItem = document.createElement('li');
+                listItem.className = 'photo-item';
+                listItem.innerHTML = `
+                    <div class="photo-item-header">
+                         <span class="rank-position">${index + 1}º</span>
+                         <img src="${photo.url}" alt="Foto de ${photo.authorName}">
+                         <div class="photo-item-info">
+                            <p><strong>Autor:</strong> ${photo.authorName || 'Anônimo'}</p>
+                            <p><strong>Média Final:</strong> ${photo.average.toFixed(2)}</p>
+                            <p><strong>Avaliações:</strong> ${photo.numEvaluations}</p>
+                         </div>
+                         <div class="photo-item-category">${categoryName}</div>
+                    </div>
+                `;
+                rankingList.appendChild(listItem);
+            });
+        }
+
+        // Event Listeners
+        contestSelect.addEventListener('change', async () => {
+            const contestId = contestSelect.value;
+            categoryFilterDiv.style.display = 'none';
+            rankingResultsSection.style.display = 'none';
+            allContestPhotos = [];
+
+            if (!contestId) return;
+
+            showSpinner();
+            try {
+                const [categories, photos] = await Promise.all([
+                    fetchCategories(contestId),
+                    fetchPhotosForContest(contestId)
+                ]);
+
+                allContestPhotos = photos;
+                contestCategories = categories;
+
+                categorySelect.innerHTML = '<option value="all">Todas as Categorias</option>';
+                categories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat.id;
+                    option.textContent = cat.name;
+                    categorySelect.appendChild(option);
+                });
+
+                categoryFilterDiv.style.display = 'block';
+                rankingResultsSection.style.display = 'block';
+                renderRanking();
+
+            } catch (error) {
+                showCustomAlert('Erro ao carregar dados do concurso.');
+            } finally {
+                hideSpinner();
+            }
+        });
+
+        categorySelect.addEventListener('change', renderRanking);
+
+        exportCsvBtn.addEventListener('click', () => {
+            const rankedPhotos = Array.from(rankingList.querySelectorAll('.photo-item')).map((item, index) => {
+                const author = item.querySelector('.photo-item-info p:nth-child(1)').textContent.replace('Autor: ', '');
+                const average = item.querySelector('.photo-item-info p:nth-child(2)').textContent.replace('Média Final: ', '');
+                const evaluations = item.querySelector('.photo-item-info p:nth-child(3)').textContent.replace('Avaliações: ', '');
+                const category = item.querySelector('.photo-item-category').textContent;
+                return { pos: index + 1, author, average, evaluations, category };
+            });
+
+            if (rankedPhotos.length === 0) {
+                showCustomAlert('Não há dados para exportar.');
+                return;
+            }
+
+            const headers = ['Posição', 'Autor', 'Categoria', 'Média Final', 'Nº de Avaliações'];
+            let csvContent = "data:text/csv;charset=utf-8," + headers.join(',') + '\n';
+
+            rankedPhotos.forEach(photo => {
+                const row = [photo.pos, `"${photo.author}"`, `"${photo.category}"`, photo.average, photo.evaluations];
+                csvContent += row.join(',') + '\n';
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `ranking_${contestSelect.options[contestSelect.selectedIndex].text}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        await initialLoad();
     }
 
     function logout() {

@@ -12,13 +12,14 @@
         <img src="./assets/cropped-LOGO_ICON.png" alt="Logo UFJ" class="logo">
         <h1>Painel do Administrador</h1>
         <nav>
-            <button id="logout-button">Sair</button>
+            <a href="ranking.html" class="btn-secondary">Ver Ranking</a>
+            <button id="logout-button" class="btn-danger">Sair</button>
         </nav>
     </header>
     <main class="admin-layout">
         <div class="tab-navigation">
             <button class="tab-button active" data-tab="user-management-tab">Gerenciamento de Usuários</button>
-            <button class="tab-button" data-tab="photos-ranking-tab">Gerenciamento de Fotos</button>
+            <button class="tab-button" data-tab="contest-management-tab">Gerenciamento de Concursos</button>
         </div>
 
         <div id="user-management-tab" class="tab-content active">
@@ -26,15 +27,21 @@
                 <h2>Registrar Novo Usuário</h2>
                 <form id="add-user-form">
                     <div class="input-group">
-                        <label for="user-email">Nome de Usuário</label>
+                        <label for="user-email">Nome de Usuário
+                            <span class="tooltip">ⓘ<span class="tooltip-text">Este será o nome de login do usuário. Não pode conter espaços ou caracteres especiais. Ex: 'joao.silva'</span></span>
+                        </label>
                         <input type="text" id="user-email" name="user-email" required>
                     </div>
                     <div class="input-group">
-                        <label for="user-password">Senha</label>
+                        <label for="user-password">Senha
+                            <span class="tooltip">ⓘ<span class="tooltip-text">A senha deve ter no mínimo 6 caracteres.</span></span>
+                        </label>
                         <input type="password" id="user-password" name="user-password" required>
                     </div>
                     <div class="input-group">
-                        <label for="user-role">Função</label>
+                        <label for="user-role">Função
+                            <span class="tooltip">ⓘ<span class="tooltip-text">'Avaliador' pode apenas votar nas fotos. 'Administrador' pode criar concursos e gerenciar usuários.</span></span>
+                        </label>
                         <select id="user-role" name="user-role" required>
                             <option value="evaluator">Avaliador</option>
                             <option value="admin">Administrador</option>
@@ -61,26 +68,28 @@
             </section>
         </div>
 
-        <div id="photos-ranking-tab" class="tab-content">
-            <section class="admin-section">
-                <h2>Gerenciamento de Fotos</h2>
-                <button id="sync-photos-btn" class="btn" style="width: 100%;">Sincronizar Fotos do Google Drive</button>
+        <div id="contest-management-tab" class="tab-content">
+            <section id="create-contest-section" class="admin-section">
+                <h2>Criar Novo Concurso</h2>
+                <form id="create-contest-form">
+                    <div class="input-group">
+                        <label for="contest-name">Nome do Concurso
+                            <span class="tooltip">ⓘ<span class="tooltip-text">O nome que identificará o concurso para os administradores e avaliadores. Ex: 'Fotografia 2025'</span></span>
+                        </label>
+                        <input type="text" id="contest-name" name="contest-name" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="contest-description">Descrição</label>
+                        <textarea id="contest-description" name="contest-description" rows="3"></textarea>
+                    </div>
+                    <button type="submit">Criar Concurso</button>
+                </form>
             </section>
-            <section class="admin-section">
-                <h2>Fotos Sincronizadas</h2>
-                <div id="photo-list-container">
+            <section id="contests-list-section" class="admin-section">
+                <h2>Concursos Criados</h2>
+                <div id="contests-list">
+                    <!-- A lista de concursos será inserida aqui pelo JavaScript -->
                 </div>
-            </section>
-            <section class="admin-section">
-                <h2>Ranking de Fotos</h2>
-                <div class="input-group">
-                    <label for="ranking-category-select">Filtrar por Categoria:</label>
-                    <select id="ranking-category-select">
-                        <option value="all">Todas as Categorias</option>
-                    </select>
-                    <button type="button" id="export-csv-btn" class="btn" style="width: auto; margin-top: 1rem;">Exportar para CSV</button>
-                </div>
-                <ol id="ranking-list"></ol>
             </section>
         </div>
     </main>
@@ -100,6 +109,28 @@
                 <button id="custom-confirm-cancel" class="btn-secondary">Cancelar</button>
                 <button id="custom-confirm-ok" class="btn">Confirmar</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal para Editar Concurso -->
+    <div id="edit-contest-modal" class="custom-alert-overlay" style="display: none;">
+        <div class="custom-alert-box">
+            <h2>Editar Concurso</h2>
+            <form id="edit-contest-form">
+                <input type="hidden" id="edit-contest-id">
+                <div class="input-group">
+                    <label for="edit-contest-name">Nome do Concurso</label>
+                    <input type="text" id="edit-contest-name" required>
+                </div>
+                <div class="input-group">
+                    <label for="edit-contest-description">Descrição</label>
+                    <textarea id="edit-contest-description" rows="3"></textarea>
+                </div>
+                <div class="confirm-buttons">
+                    <button type="button" id="edit-contest-cancel" class="btn-secondary">Cancelar</button>
+                    <button type="submit" class="btn">Salvar</button>
+                </div>
+            </form>
         </div>
     </div>
 

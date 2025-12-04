@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Concurso - Seu Olhar Pelo Sertão</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <img src="./assets/cropped-LOGO_ICON.png" alt="Logo UFJ" class="logo">
+            <div class="header-content">
+                <h1>Gerenciar Concurso</h1>
+                <h2 id="contest-title-header">Carregando...</h2>
+            </div>
+            <nav>
+                <a href="ranking.html" class="btn-secondary">Ver Ranking</a>
+                <a href="admin.html" class="btn-secondary">Voltar</a>
+                <button id="logout-button" class="btn-danger">Sair</button>
+            </nav>
+        </header>
+        <main class="admin-layout">
+            <div class="tab-navigation">
+                <button class="tab-button active" data-tab="categories-tab">Categorias</button>
+                <button class="tab-button" data-tab="photos-tab">Fotos</button>
+                <button class="tab-button" data-tab="voters-tab">Avaliadores</button>
+            </div>
+
+            <!-- Aba de Gerenciamento de Categorias -->
+            <div id="categories-tab" class="tab-content active">
+                <section class="admin-section">
+                    <h2>Adicionar Nova Categoria</h2>
+                    <form id="add-category-form">
+                        <div class="input-group">
+                            <label for="category-name">Nome da Categoria
+                                <span class="tooltip">ⓘ<span class="tooltip-text">Crie as categorias para organizar as fotos do concurso. Ex: 'Paisagens', 'Retratos', 'Abstrato'.</span></span>
+                            </label>
+                            <input type="text" id="category-name" name="category-name" required>
+                        </div>
+                        <button type="submit">Adicionar Categoria</button>
+                    </form>
+                </section>
+                <section class="admin-section">
+                    <h2>Categorias Existentes</h2>
+                    <ul id="categories-list" class="simple-list">
+                        <!-- Lista de categorias será inserida aqui -->
+                    </ul>
+                </section>
+            </div>
+
+            <!-- Aba de Gerenciamento de Fotos -->
+            <div id="photos-tab" class="tab-content">
+                <section class="admin-section">
+                    <h2>Adicionar Nova Foto</h2>
+                    <form id="add-photo-form">
+                        <div class="input-group">
+                            <label for="photo-file">Arquivo da Foto</label>
+                            <input type="file" id="photo-file" name="photo-file" accept="image/*" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="photo-category">Categoria</label>
+                            <select id="photo-category" name="photo-category" required>
+                                <option value="">Selecione uma categoria...</option>
+                                <!-- Opções de categoria serão inseridas aqui -->
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="photo-author">Nome do Autor (Opcional)
+                                <span class="tooltip">ⓘ<span class="tooltip-text">Se preenchido, o nome do autor da foto será visível no ranking final. Deixe em branco para fotos anônimas.</span></span>
+                            </label>
+                            <input type="text" id="photo-author" name="photo-author">
+                        </div>
+                        <button type="submit">Adicionar Foto</button>
+                    </form>
+                </section>
+                <section class="admin-section">
+                    <h2>Fotos do Concurso</h2>
+                    <div id="contest-photos-gallery" class="admin-gallery">
+                        <!-- Galeria de fotos será inserida aqui -->
+                    </div>
+                </section>
+            </div>
+
+            <!-- Aba de Gerenciamento de Avaliadores -->
+            <div id="voters-tab" class="tab-content">
+                <section class="admin-section">
+                    <h2>Adicionar Avaliador ao Concurso</h2>
+                    <form id="add-voter-form">
+                        <div class="input-group">
+                            <label for="voter-username">Nome de Usuário do Avaliador
+                                <span class="tooltip">ⓘ<span class="tooltip-text">Escolha um usuário com a função 'Avaliador' para dar a ele permissão de votar neste concurso específico.</span></span>
+                            </label>
+                            <select id="voter-username" name="voter-username" required>
+                                 <option value="">Selecione um usuário...</option>
+                                <!-- Lista de usuários (avaliadores) será inserida aqui -->
+                            </select>
+                        </div>
+                        <button type="submit">Adicionar Avaliador</button>
+                    </form>
+                </section>
+                <section class="admin-section">
+                    <h2>Avaliadores Autorizados</h2>
+                    <ul id="voters-list" class="simple-list">
+                        <!-- Lista de avaliadores será inserida aqui -->
+                    </ul>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modais e Spinner -->
+    <div id="custom-alert" class="custom-alert-overlay" style="display: none;">
+        <div class="custom-alert-box">
+            <p id="custom-alert-message"></p>
+            <button id="custom-alert-close">OK</button>
+        </div>
+    </div>
+
+    <div id="custom-confirm" class="custom-alert-overlay" style="display: none;">
+        <div class="custom-alert-box">
+            <p id="custom-confirm-message"></p>
+            <div class="confirm-buttons">
+                <button id="custom-confirm-cancel" class="btn-secondary">Cancelar</button>
+                <button id="custom-confirm-ok" class="btn">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="spinner-overlay" style="display: none;">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- SDKs do Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="assets/js/firebase-config.js"></script>
+    <script src="assets/js/database.js"></script>
+    <script src="assets/js/app.js"></script>
+</body>
+</html>
