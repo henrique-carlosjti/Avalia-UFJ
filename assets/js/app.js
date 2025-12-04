@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    async function handleAdminPage() {
+    function handleAdminPage() {
         const logoutButton = document.getElementById('logout-button');
         if (logoutButton) logoutButton.addEventListener('click', logout);
 
@@ -315,18 +315,6 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
 
-        async function initialLoad() {
-            showSpinner();
-            try {
-                // Não precisamos mais buscar fotos ou usuários globais no carregamento inicial da página de admin
-                // A busca será feita quando a respectiva aba for aberta.
-                await showTab('user-management-tab'); 
-            } finally {
-                hideSpinner();
-            }
-        }
-        await initialLoad();
-
         async function renderContests() {
             const contestsListDiv = document.getElementById('contests-list');
             contestsListDiv.innerHTML = '<p>Carregando concursos...</p>';
@@ -415,6 +403,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 hideSpinner();
             }
         }
+
+        async function initialLoad() {
+            showSpinner();
+            try {
+                // A busca será feita quando a respectiva aba for aberta.
+                await showTab('user-management-tab'); 
+            } finally {
+                hideSpinner();
+            }
+        }
+        
+        // Inicia o carregamento da página de admin
+        initialLoad();
     }
 
     async function handleContestDetailsPage() {
