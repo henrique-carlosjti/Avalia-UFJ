@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutorial do Administrador - Seu Olhar Pelo Sertão</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <img src="./assets/cropped-LOGO_ICON.png" alt="Logo UFJ" class="logo">
+            <div class="header-content">
+                <h1>Tutorial do Administrador</h1>
+            </div>
+            <nav>
+                <a href="admin.html" class="btn-secondary">Voltar ao Painel</a>
+                <button id="logout-button" class="btn-danger">Sair</button>
+            </nav>
+        </header>
+        <main class="tutorial-content">
+            <section>
+                <h2>Introdução</h2>
+                <p>Bem-vindo ao painel de administração! Este guia irá orientá-lo através de todas as funcionalidades disponíveis para criar e gerenciar seus concursos de fotografia.</p>
+            </section>
+
+            <section>
+                <h2>Passo 1: Gerenciamento de Usuários</h2>
+                <p>A primeira etapa é garantir que os usuários corretos (avaliadores e outros administradores) estejam cadastrados no sistema.</p>
+                <ul>
+                    <li><strong>Acesse a aba "Gerenciamento de Usuários"</strong> no painel principal.</li>
+                    <li><strong>Para registrar um novo usuário:</strong> Preencha o nome de usuário (sem espaços ou caracteres especiais), uma senha com no mínimo 6 caracteres e selecione a função:
+                        <ul>
+                            <li><strong>Avaliador:</strong> Pode apenas visualizar e votar nas fotos dos concursos aos quais for atribuído.</li>
+                            <li><strong>Administrador:</strong> Tem acesso total ao sistema, podendo criar concursos e gerenciar usuários.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Para excluir um usuário:</strong> Na tabela "Usuários Cadastrados", clique no botão "Excluir" ao lado do usuário desejado. Você não pode excluir a si mesmo ou o administrador principal.</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>Passo 2: Gerenciamento de Concursos</h2>
+                <p>Com os usuários cadastrados, você pode começar a criar os concursos.</p>
+                <ul>
+                    <li><strong>Acesse a aba "Gerenciamento de Concursos"</strong>.</li>
+                    <li><strong>Para criar um novo concurso:</strong> Preencha o nome e uma descrição opcional e clique em "Criar Concurso".</li>
+                    <li><strong>Gerenciar um concurso:</strong> Na lista de "Concursos Criados", você encontrará as seguintes opções para cada concurso:
+                        <ul>
+                            <li><strong>Status:</strong> Altere o status do concurso para controlar seu ciclo de vida.
+                                <ul>
+                                    <li><strong>Rascunho:</strong> O concurso está sendo preparado. Avaliadores não podem vê-lo.</li>
+                                    <li><strong>Aberto:</strong> O concurso está ativo e visível para os avaliadores designados votarem.</li>
+                                    <li><strong>Fechado:</strong> A votação está encerrada. Os resultados ficam disponíveis na página de Ranking.</li>
+                                </ul>
+                            </li>
+                            <li><strong>Editar:</strong> Permite alterar o nome e a descrição do concurso.</li>
+                            <li><strong>Gerenciar:</strong> Leva você para a página de detalhes do concurso, onde você adiciona categorias, fotos e avaliadores.</li>
+                            <li><strong>Excluir:</strong> Apaga permanentemente o concurso e todos os seus dados (fotos, categorias, avaliações). <strong>Esta ação não pode ser desfeita.</strong></li>
+                        </ul>
+                    </li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>Passo 3: Detalhes do Concurso (Gerenciar)</h2>
+                <p>Esta é a área onde você popula o concurso com conteúdo e define quem pode votar.</p>
+                <ul>
+                    <li><strong>Aba "Categorias":</strong> Crie as categorias que organizarão as fotos (ex: "Paisagens", "Retratos"). Você pode editar o nome ou remover categorias a qualquer momento.</li>
+                    <li><strong>Aba "Fotos":</strong> Faça o upload das imagens para o concurso. Para cada foto, você deve selecionar um arquivo, associá-la a uma categoria e, opcionalmente, adicionar o nome do autor.</li>
+                    <li><strong>Aba "Avaliadores":</strong> Adicione os usuários (com função de "Avaliador") que terão permissão para votar nas fotos deste concurso específico. Um avaliador só verá os concursos aos quais for adicionado.</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>Passo 4: O Processo de Avaliação</h2>
+                <p>Uma vez que um concurso está com o status "Aberto" e tem avaliadores designados, eles poderão fazer o login e avaliar as fotos. Eles verão uma interface para selecionar o concurso, a categoria e navegar entre as fotos, atribuindo notas para cada critério.</p>
+            </section>
+
+            <section>
+                <h2>Passo 5: Visualizando os Resultados (Ranking)</h2>
+                <p>Após o término da votação, altere o status do concurso para "Fechado".</p>
+                <ul>
+                    <li>Acesse a página de "Ranking" através do link no cabeçalho ou na página de login.</li>
+                    <li>Selecione o concurso finalizado que deseja visualizar.</li>
+                    <li>Você pode filtrar os resultados por categoria ou ver o ranking geral.</li>
+                    <li>Use o botão "Exportar para CSV" para baixar uma planilha com os resultados da seleção atual.</li>
+                </ul>
+            </section>
+        </main>
+    </div>
+
+    <!-- SDKs do Firebase -->
+    <script defer src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script defer src="assets/js/firebase-config.js"></script>
+    <script defer src="assets/js/database.js"></script>
+    <script defer src="assets/js/app.js"></script>
+</body>
+</html>

@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function () {
             window.location.href = targetPage;
             return;
         }
-        if (loggedInUser.role === 'admin' && !['admin.html', 'contest-details.html', 'ranking.html'].includes(page)) {
+        if (loggedInUser.role === 'admin' && !['admin.html', 'contest-details.html', 'ranking.html', 'tutorial.html'].includes(page)) {
             window.location.href = 'admin.html';
             return;
         }
@@ -94,6 +94,9 @@ document.addEventListener('DOMContentLoaded', function () {
             break;
         case 'ranking.html':
             handleRankingPage();
+            break;
+        case 'tutorial.html':
+            handleTutorialPage();
             break;
     }
 
@@ -1061,6 +1064,11 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         await initialLoad();
+    }
+
+    function handleTutorialPage() {
+        const logoutButton = document.getElementById('logout-button');
+        if (logoutButton) logoutButton.addEventListener('click', logout);
     }
 
     function logout() {
