@@ -710,7 +710,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const existingEvaluation = photo.ratings.find(r => r.evaluator === loggedInUser.username);
             if (existingEvaluation) {
                 sliders.forEach(slider => {
-                    slider.value = existingEvaluation.scores[slider.id] || 5;
+                    slider.value = existingEvaluation.scores[slider.id] || '5';
                     document.getElementById(`${slider.id}-value`).textContent = slider.value;
                 });
                 document.getElementById('comments').value = existingEvaluation.comments || '';
@@ -830,7 +830,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     // Atualiza o estado local
                     const photoToUpdate = allContestPhotos.find(p => p.id === currentPhoto.id);
                     const ratingIndex = photoToUpdate.ratings.findIndex(r => r.evaluator === loggedInUser.username);
-                    if (ratingIndex > -1) {
+                    if (ratingIndex > -1) { // Se já existe, atualiza
                         photoToUpdate.ratings[ratingIndex] = evaluation;
                     } else {
                         photoToUpdate.ratings.push(evaluation);

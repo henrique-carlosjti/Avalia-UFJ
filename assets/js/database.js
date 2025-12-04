@@ -9,7 +9,7 @@ const db = firebase.firestore();
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxA1NjkAe8U9QhQkDO0I_BPTvl8jzQTsUikvkqYbr9nJUaSniUd0xJqRgQBY8JgCtDm/exec';
 
 
-const FAKE_EMAIL_DOMAIN = '@seu-olhar.app';
+const FAKE_EMAIL_DOMAIN = '@avalia-ufj.app';
 
 let photos = {}; // [DEPRECATED] - Será substituído por um estado local nas páginas.
 
